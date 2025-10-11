@@ -1,21 +1,27 @@
 # A very simple Flask Hello World app for you to get started with...
 
-from flask import Flask, send_file
+from flask import Flask, send_file, Response
 import os
 
 from os.path import join, dirname
-
-
 
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return '<h1>大鸭鸭表格生成工具</h1><p><a href="/download">下载</a></p><hr><p><a href="https://github.com/cyber-mj00/170045xyz" target="_blank">Source code</a></p>'
+    html = '''<!doctype html><html><head><title>大鸭鸭表格生成工具</title></head>
+              <body><h1>大鸭鸭表格生成工具</h1>
+              <p><a href="/download">下载</a>（每小时更新）</p>
+              <hr><p><a href="https://github.com/cyber-mj00/170045xyz" target="_blank">Source code</a></p>
+              </body></html>'''
+    return Response(html, content_type='text/html; charset=utf-8')
 
 @app.route('/download')
 def download_file():
-    with open(join(dirname(__file__), "latest_file.txt"), "r") as f:
-        filename = f.read()
+    try:
+        with open(join(dirname(__file__), "latest_file.txt"), "r") as f:
+            filename = f.read()
 
-    return send_file(filename, as_attachment=True)
+        return send_file(join(dirname(__file__), filename), as_attachment=True)
+    except Exception as e:
+        return f"Error sending file: {str(e)}", 500
