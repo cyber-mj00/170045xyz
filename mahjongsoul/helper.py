@@ -56,6 +56,10 @@ class Player:
     def modifyRankPt(self, modifier):
         self.rank_pt += modifier
     
+    def modifyRankCount(self, old, new):
+        self.rank_count[old] -= 1
+        self.rank_count[new] += 1
+    
     def __str__(self):
         return str({'nickname': self.nickname})
     
@@ -84,6 +88,14 @@ class PlayerPool:
         try:
             idx = [p.nickname for p in self.players].index(nickname)
             self.players[idx].modifyRankPt(modifier)
+        except ValueError as e:
+            print("Player not found.")
+    
+    def modifyPlayerRank(self, nickname, rank: tuple):
+        try:
+            idx = [p.nickname for p in self.players].index(nickname)
+            old, new = rank
+            self.players[idx].modifyRankCount(old, new)
         except ValueError as e:
             print("Player not found.")
     
@@ -154,10 +166,10 @@ class Game:
             if game_data['result']['players'][j]["part_point_1"] == game_data['result']['players'][k]["part_point_1"]:
                 new_point = (game_data['result']['players'][j]["total_point"]+game_data['result']['players'][k]["total_point"]) / 2
                 player1 = [x['nickname'] for x in account if game_data['result']['players'][j]['seat'] == x['seat']][0]
-                self.modified[player1] = new_point - game_data['result']['players'][j]["total_point"]
+                self.modified[player1] = {"point": new_point - game_data['result']['players'][j]["total_point"], "rank": (j, j)}
                 game_data['result']['players'][j]["total_point"] = new_point
                 player2 = [x['nickname'] for x in account if game_data['result']['players'][k]['seat'] == x['seat']][0]
-                self.modified[player2] = new_point - game_data['result']['players'][k]["total_point"]
+                self.modified[player2] = {"point": new_point - game_data['result']['players'][k]["total_point"], "rank": (k, j)}
                 game_data['result']['players'][k]["total_point"] = new_point
         for i in range(4):
             result = [p for p in game_data['result']['players'] if p['seat'] == i][0]
@@ -192,9 +204,9 @@ class Games:
         if game.hasModified():
             for k, v in game.modified.items():
                 if k in self.modified:
-                    self.modified[k] += v
+                    self.modified[k].append(v)
                 else:
-                    self.modified[k] = v
+                    self.modified[k] = [v]
 
     
     def getGameFromUuid(self, uuid):
