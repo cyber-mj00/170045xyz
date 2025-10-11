@@ -21,6 +21,11 @@ def readTeams(filename="teams.json"):
         teams = json.loads(f.read())
     return teams
 
+def delFile(filename):
+    file_path = join(dirname(__file__), filename)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
 def color_strtoint(color_str):
     try:
         assert len(color_str) == 6
@@ -29,6 +34,9 @@ def color_strtoint(color_str):
     return int(color_str[0:2], 16), int(color_str[2:4], 16), int(color_str[4:6], 16)
 
 def main():
+    with open(join(dirname(__file__), "latest_file.txt"), "r") as f:
+        delFile(old_filename := f.read())
+    
     print("Logging in to Majsoul Contest Dashboard...")
     hbr1_login = TournamentLogin(mjs_email=os.environ.get('mjs_email'), mjs_pw=os.environ.get('mjs_passwd'))
     print(f"Locating Contest {os.environ.get('contest_unique_id')}...")
@@ -101,7 +109,8 @@ def main():
     print("Writing to spreadsheet...")
     time_now = datetime.datetime.now(tz=(beijing_time := CNTZ()))
     ContrastColor = lambda r,g,b: "000000" if (0.299 * r + 0.587 * g + 0.114 * b)/255 > 0.5 else "ffffff"
-    with pd.ExcelWriter((output_filename := os.environ.get('output_filename')+time_now.strftime("_%Y%m%d_%H%M%S")+".xlsx"), engine='xlsxwriter') as writer:
+    
+    with pd.ExcelWriter(join(dirname(__file__), (output_filename := os.environ.get('output_filename')+time_now.strftime("_%Y%m%d_%H%M%S")+".xlsx")), engine='xlsxwriter') as writer:
         df1_team.to_excel(writer, index=False, sheet_name='团体个人表', startrow=1)
         df1_individual.to_excel(writer, index=True, sheet_name='个人积分表', startrow=1)
         df1_teamTotal.to_excel(writer, index=True, sheet_name='队伍积分表', startrow=1)
@@ -219,7 +228,9 @@ def main():
             worksheet_paifu.conditional_format(
                 f"O2:R{row4+1}", {"type": "formula", "criteria": f'=$P2="{team.name}"', "format": formats[team.name]}
             )
-
+    
+    with open(join(dirname(__file__), "latest_file.txt"), "w") as f:
+        f.write(output_filename)
 
 
 
