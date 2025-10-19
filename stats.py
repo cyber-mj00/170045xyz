@@ -87,7 +87,12 @@ def main():
     print("Generating team scores")
     df1_teamTotal = df1_team.groupby('队伍', observed=True).agg({'积分': 'sum','试合数': 'sum','1着': 'sum','2着': 'sum','3着': 'sum','4着': 'sum'}).sort_values(by='积分', ascending=False).reset_index(names='队伍')
     df1_teamTotal.insert(2,"差值",-df1_teamTotal['积分'].diff())
-    df1_teamTotal.insert(3,"晋级线",df1_teamTotal['积分']-df1_teamTotal.loc[5,'积分'])
+
+    cutoff = df1_teamTotal['积分'].copy()
+    cutoff.iloc[:6] = df1_teamTotal['积分'].iloc[:6] - df1_teamTotal.loc[6, '积分']
+    cutoff.iloc[6:] = df1_teamTotal['积分'].iloc[6:] - df1_teamTotal.loc[5, '积分']
+    df1_teamTotal.insert(3, "晋级线", cutoff)
+
     df1_teamTotal.index = df1_teamTotal.index + 1
 
     df1_individual.index.name = '排名'
