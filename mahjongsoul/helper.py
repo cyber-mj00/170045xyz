@@ -17,18 +17,20 @@ class CNTZ(tzinfo):
         return f"{self.__class__.__name__}()"
 
 class Player:
-    def __init__(self, player_data):
+    def __init__(self, player_data, team = None):
         self.dyyId = None
-        self.mjsId = player_data['player']['account_id']
-        self.nickname = player_data['player']['nickname']
-        self.team = ""
-        self.total_game_count = player_data['player']['account_data']['total_game_count']
-        self.games = player_data['player']['account_data']['recent_games']
-        self.rank_pt = player_data['rank_data']['accumulate_point']
-        self.rank_count = [player_data['rank_data']['rank_1_count'],
-                           player_data['rank_data']['rank_2_count'],
-                           player_data['rank_data']['rank_3_count'],
-                           player_data['rank_data']['rank_4_count']]
+        self.mjsId = player_data['account_id']
+        self.nickname = player_data['nickname']
+        self.team = team or ""
+        self.total_game_count = player_data['account_data']['total_game_count']
+        self.games = player_data['account_data']['recent_games']
+        self.rank_pt = player_data["account_data"]['accumulate_point']
+        self.rank, self.rank_count = self.__getRank()
+    
+    def __getRank(self):
+        rank_freq = [int(t['rank']) for t in self.games]
+        rank = {x: rank_freq.count(x) for x in range(1,5)}
+        return rank, list(rank.values())
     
     def setDyyId(self, dyyId):
         self.dyyId = dyyId
@@ -152,12 +154,13 @@ class Teams:
         return ""
 
 class Game:
-    def __init__(self, game_data):
+    def __init__(self, game_data, tz: tzinfo = None):
         self.uuid = game_data['uuid']
+        self.tz = tz or CNTZ()
         self.modified = {}
         self.players = self.__addPlayers(game_data)
-        self.start_time = game_data['start_time']
-        self.end_time = game_data['end_time']
+        self.start_time = datetime.fromtimestamp(game_data['start_time'], tz=self.tz)
+        self.end_time = datetime.fromtimestamp(game_data['end_time'], tz=self.tz)
     
     def __addPlayers(self,game_data):
         account = sorted(game_data['accounts'], key=lambda x:x['seat'])
@@ -185,6 +188,9 @@ class Game:
     
     def hasModified(self):
         return len(self.modified) > 0
+    
+    def hasSameDate(self, time: datetime):
+        return self.start_time.date() == time.date()
 
 class Games:
     def __init__(self, contestId):
@@ -215,18 +221,22 @@ class Games:
     def getPlayerGames(self, nickname):
         return [g for g in self.game_list if g.hasPlayed(nickname)]
     
+    def getGameFromTime(self, time: datetime):
+        return [g for g in self.game_list if g.hasSameDate(time)]
+    
     def getModified(self):
         return self.modified
     
-    def exportToDict(self):
+    def exportToDict(self, games = None):
         data_cols = ["开始时间","结束时间", "1位玩家","1位分数","1位终局点数","2位玩家","2位分数","2位终局点数","3位玩家","3位分数","3位终局点数","4位玩家","4位分数","4位终局点数","牌谱链接"]
         data = {a: [] for a in data_cols}
-        beijing_time = CNTZ()
+        games = games or self.game_list
+        #beijing_time = CNTZ()
 
         for game in self.game_list:
             game_data = sorted(game.players, key=lambda x:x["total_point"], reverse=True)
-            data["开始时间"].append(datetime.fromtimestamp(game.start_time, tz=beijing_time).strftime("%Y-%m-%d %H:%M:%S"))
-            data["结束时间"].append(datetime.fromtimestamp(game.end_time, tz=beijing_time).strftime("%Y-%m-%d %H:%M:%S"))
+            data["开始时间"].append(game.start_time.strftime("%Y-%m-%d %H:%M:%S"))
+            data["结束时间"].append(game.end_time.strftime("%Y-%m-%d %H:%M:%S"))
             data["1位玩家"].append(game_data[0]["nickname"])
             data["1位分数"].append(game_data[0]["part_point_1"])
             data["1位终局点数"].append(game_data[0]["total_point"] / 1000)
@@ -242,5 +252,3 @@ class Games:
             data["牌谱链接"].append("https://game.maj-soul.com/1/?paipu="+game.uuid)
         
         return data
-             
-#datetime.fromtimestamp(timestamp, tz=None)
